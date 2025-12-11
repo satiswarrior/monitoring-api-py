@@ -3,6 +3,9 @@ uvicorn
 python-dotenv
 pyjwt
 pydantic
+pydantic_settings
 asyncpg
 sqlalchemy>=2.0
 alembic
+
+black
