@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+python-dotenv
+pyjwt
+pydantic
+asyncpg
+sqlalchemy>=2.0
+alembic

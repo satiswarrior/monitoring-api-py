@@ -1,0 +1,48 @@
+# Build artifacts
+/bin/
+/build/
+/dist/
+
+# Executables
+*.exe
+*.out
+*.test
+
+# === OS-specific ===
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# === IDE / Editor ===
+# VSCode
+.vscode/
+/.vscode/*
+
+# JetBrains IDE
+.idea/
+/*.iml
+
+# === Logs ===
+*.log
+logs/
+debug.log
+
+# === Temporary files ===
+*.tmp
+*.temp
+*.swp
+*.swo
+
+# === Secrects ===
+*.env
+
+# === Output directories ===
+output/
+release/
