@@ -1,11 +1,11 @@
 # Monitoring API
 
-RESTful API для мониторинга серверов написанный на Go.
+RESTful API для мониторинга серверов написанный на Python.
 
 ### Структура проекта
 
 ```
-esn_monitoring/
+monitoring-api/
 │
 ├── src/
 │   ├── main.py
