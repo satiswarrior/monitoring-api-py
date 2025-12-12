@@ -37,7 +37,7 @@ CommandStatusEnum = SAEnum(
     name="command_status",
 )
 ResultStatusEnum = SAEnum(
-    "success",
+    "done",
     "failed",
     name="result_status",
 )
