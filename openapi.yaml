@@ -1,0 +1,304 @@
+openapi: 3.1.0
+info:
+  title: ESN Monitoring API
+  version: 1.0.0
+  description: >
+    Центральный сервер мониторинга для отслеживания состояния CGMServer.
+    Включает API для мониторинговых агентов и административной панели.
+
+servers:
+  - url: https://monitoring.example.com/api/v1
+
+security:
+  - AdminJWT: []
+  - AgentKey: []
+
+components:
+  securitySchemes:
+    AdminJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+    AgentKey:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  schemas:
+
+    AgentStatusRequest:
+      type: object
+      required: [agent_key, server_id, ip, cgm_version, admin_version, timestamp]
+      properties:
+        agent_key:
+          type: string
+        server_id:
+          type: integer
+        ip:
+          type: string
+        cgm_version:
+          type: string
+        admin_version:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+    AlertItem:
+      type: object
+      required: [severity, source, alert, counter]
+      properties:
+        severity:
+          type: string
+          enum: [Normal, Minor, Major, Critical]
+        source:
+          type: string
+        alert:
+          type: string
+        counter:
+          type: integer
+        stackTrace:
+          type: string
+          nullable: true
+
+    AgentAlertsRequest:
+      type: object
+      required: [agent_key, server_id, alerts]
+      properties:
+        agent_key:
+          type: string
+        server_id:
+          type: integer
+        alerts:
+          type: array
+          items:
+            $ref: "#/components/schemas/AlertItem"
+
+    Command:
+      type: object
+      properties:
+        command_id:
+          type: integer
+        type:
+          type: string
+          enum: [DELETE_ALERT]
+        payload:
+          type: object
+
+    CommandResultRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [success, failed]
+        message:
+          type: string
+          nullable: true
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        token_type:
+          type: string
+
+    Server:
+      type: object
+      properties:
+        id: { type: integer }
+        region_id: { type: integer }
+        region_name: { type: string }
+        ip: { type: string }
+        cgm_version: { type: string }
+        admin_version: { type: string }
+        last_update: { type: string, format: date-time }
+        has_critical_alerts: { type: boolean }
+
+paths:
+
+  #######################
+  #   Agent Endpoints   #
+  #######################
+
+  /agent/status:
+    post:
+      tags: [Agent]
+      summary: Отправить текущее состояние сервера
+      security:
+        - AgentKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentStatusRequest"
+      responses:
+        "200":
+          description: Status stored
+
+  /agent/alerts:
+    post:
+      tags: [Agent]
+      summary: Отправить список алертов
+      security:
+        - AgentKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentAlertsRequest"
+      responses:
+        "200":
+          description: Alerts stored
+
+  /agent/commands:
+    get:
+      tags: [Agent]
+      summary: Получить список команд для сервера
+      security:
+        - AgentKey: []
+      parameters:
+        - name: server_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of commands
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Command"
+                required: [data]
+
+  /agent/commands/{command_id}/result:
+    post:
+      tags: [Agent]
+      summary: Отправить результат выполнения команды
+      security:
+        - AgentKey: []
+      parameters:
+        - name: command_id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CommandResultRequest"
+      responses:
+        "200":
+          description: Result saved
+
+
+  #######################
+  #    Admin Endpoints  #
+  #######################
+
+  /admin/auth/login:
+    post:
+      tags: [Admin]
+      summary: Авторизация администратора
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+
+  /admin/servers:
+    get:
+      tags: [Admin]
+      security:
+        - AdminJWT: []
+      summary: Получить список всех серверов
+      responses:
+        "200":
+          description: List of servers
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Server"
+                required: [data]
+
+  /admin/alerts:
+    get:
+      tags: [Admin]
+      security:
+        - AdminJWT: []
+      summary: Получить список алертов сервера
+      parameters:
+        - name: server_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertItem"
+                required: [data]
+
+  /admin/alerts/{filename}:
+    delete:
+      tags: [Admin]
+      security:
+        - AdminJWT: []
+      summary: Пометить алерт на удаление (создаёт команду для агента)
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Deletion command created
+
+  /admin/commands/send:
+    post:
+      tags: [Admin]
+      security:
+        - AdminJWT: []
+      summary: Отправить произвольную команду серверу
+      responses:
+        "200":
+          description: Command queued
