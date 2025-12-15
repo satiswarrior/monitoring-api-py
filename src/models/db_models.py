@@ -1,3 +1,4 @@
+from enum import Enum as PyEnum
 from sqlalchemy import (
     Column,
     Integer,
@@ -16,36 +17,38 @@ from sqlalchemy.orm import relationship
 from src.database import Base
 
 
+# Python Enums для внутреннего использования
+class AlertSeverity(PyEnum):
+    Normal = "Normal"
+    Minor = "Minor"
+    Major = "Major"
+    Critical = "Critical"
+
+class CommandType(PyEnum):
+    DELETE_ALERT = "DELETE_ALERT"
+    CUSTOM = "CUSTOM"
+
+class CommandStatus(PyEnum):
+    pending = "pending"
+    sent = "sent"
+    done = "done"
+    failed = "failed" 
+
+class ResultStatus(PyEnum):
+    done = "done"
+    failed = "failed"
+
+class UserRole(PyEnum):
+    admin = "admin"
+    viewer = "viewer"
+
+
 # Postgres ENUM definitions (names must match those used in raw SQL schema)
-AlertSeverityEnum = SAEnum(
-    "Normal",
-    "Minor",
-    "Major",
-    "Critical",
-    name="alert_severity",
-)
-CommandTypeEnum = SAEnum(
-    "DELETE_ALERT",
-    "CUSTOM",
-    name="command_type",
-)
-CommandStatusEnum = SAEnum(
-    "pending",
-    "sent",
-    "done",
-    "failed",
-    name="command_status",
-)
-ResultStatusEnum = SAEnum(
-    "done",
-    "failed",
-    name="result_status",
-)
-UserRoleEnum = SAEnum(
-    "admin",
-    "viewer",
-    name="user_role",
-)
+AlertSeverityEnum = SAEnum(AlertSeverity, name="alert_severity")
+CommandTypeEnum = SAEnum(CommandType, name="command_type")
+CommandStatusEnum = SAEnum(CommandStatus, name="command_status")
+ResultStatusEnum = SAEnum(ResultStatus, name="result_status")
+UserRoleEnum = SAEnum(UserRole, name="user_role")
 
 
 class Region(Base):
