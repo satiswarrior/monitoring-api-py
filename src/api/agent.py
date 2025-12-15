@@ -1,11 +1,10 @@
-from typing import List
-
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from src.security.agent_key import verify_agent_key
 from src.models.agent_models import AgentStatusRequest, AgentAlertsRequest, CommandResultRequest
+from src.models.db_models import ResultStatus, CommandStatus
 from src.database import get_session
 from src.models.db_models import Server, Alert, CommandQueue, CommandResult
 
@@ -24,17 +23,9 @@ async def post_status(req: AgentStatusRequest, session: AsyncSession = Depends(g
     server = result.scalars().first()
 
     if server is None:
-        server = Server(
-            id=req.server_id,
-            region_id=req.region_id,
-            ip=req.ip,
-            cgm_version=req.cgm_version,
-            admin_version=req.admin_version,
-            last_update=req.timestamp,
-            last_status=getattr(req, 'raw_status', None),
-        )
-        session.add(server)
-    else:
+        raise HTTPException(status_code=404, detail="Invalid server ID")
+
+    async with session.begin():
         server.region_id = req.region_id
         server.ip = req.ip
         server.cgm_version = req.cgm_version
@@ -75,13 +66,14 @@ async def post_alerts(req: AgentAlertsRequest, session: AsyncSession = Depends(g
     return {"message": "Alerts stored", "count": inserted}
 
 
-@router.get("/commands", response_model=List[dict])
+@router.get("/commands")
 async def get_commands(server_id: int, session: AsyncSession = Depends(get_session), key: str = Depends(verify_agent_key)):
     """Возвращает pending команды для сервера.
 
     Ответ представляет собой список словарей: {id, type, payload}
     """
-    stmt = select(CommandQueue).where(CommandQueue.server_id == server_id, CommandQueue.status == 'pending')
+    stmt = (select(CommandQueue)
+            .where(CommandQueue.server_id == server_id, CommandQueue.status == CommandStatus.pending))
     result = await session.execute(stmt)
     rows = result.scalars().all()
     return {"data": [{"id": r.id, "type": r.type, "payload": r.payload} for r in rows]}
@@ -100,12 +92,18 @@ async def command_result(command_id: int, req: CommandResultRequest, session: As
         # insert result
         result_row = CommandResult(command_id=cmd.id, status=req.status, message=req.message)
         session.add(result_row)
+        # flush so DB defaults (created_at) are available, then refresh
+        await session.flush()
+        try:
+            await session.refresh(result_row)
+        except Exception:
+            pass
 
         # update command status
-        if req.status in ("done", "failed"):
+        if req.status in {status.value for status in ResultStatus}:
             cmd.status = req.status
-            if hasattr(result_row, 'created_at') and req.status is "done":
-                cmd.executed_at = result_row.created_at
+            if req.status == ResultStatus.done:
+                cmd.executed_at = getattr(result_row, 'created_at', None)
 
 
     return {"message": "Result saved", "command_id": command_id}
